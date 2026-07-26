@@ -71,15 +71,11 @@ def _load_embedding_model():
 
 init_status = st.status("Starting ResearchMind AI...", expanded=False)
 
-init_status.update(label="Connecting to Gemini...", state="running")
 if "llm_client" not in st.session_state:
     try:
         st.session_state.llm_client = LLMClient()
-        init_status.update(label="Gemini connected", state="complete")
-    except LLMError as e:
-        st.error(str(e))
+    except LLMError:
         st.session_state.llm_client = None
-        init_status.update(label="Gemini unavailable", state="error")
 
 init_status.update(label="Loading embedding model...", state="running")
 if "embedder" not in st.session_state:
@@ -116,6 +112,25 @@ init_status.empty()
 # ── Sidebar ─────────────────────────────────────────────────────────────────
 
 with st.sidebar:
+    # ── API Key (cloud fallback) ─────────────────────────────────────
+    if st.session_state.llm_client is None:
+        st.markdown("## 🔑 Gemini API Key")
+        api_key = st.text_input(
+            "Enter your Gemini API key",
+            type="password",
+            placeholder="Paste your key here...",
+            help="Get a free key at https://aistudio.google.com/app/apikey",
+            label_visibility="collapsed",
+        )
+        if api_key:
+            st.session_state.api_key = api_key
+            try:
+                st.session_state.llm_client = LLMClient(api_key=api_key)
+                st.rerun()
+            except LLMError as e:
+                st.error(str(e))
+        st.divider()
+
     st.markdown("## 📄 Documents")
 
     uploaded_files = st.file_uploader(

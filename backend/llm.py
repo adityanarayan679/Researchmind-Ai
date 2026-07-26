@@ -1,10 +1,9 @@
 """LLM client wrapping Google's Gemini API for text generation."""
 
 import logging
-from typing import Generator
+from typing import Generator, Optional
 
 from google import genai
-from google.genai import types as genai_types
 
 from config.settings import Settings
 
@@ -20,17 +19,15 @@ class LLMError(Exception):
 class LLMClient:
     """A client for generating text using Google's Gemini API.
 
-    Encapsulates API configuration, prompt formatting, and error handling
-    so callers (the RAG pipeline, the chat interface) never deal with the
-    raw API.
-
     Usage:
         client = LLMClient()
+        client = LLMClient(api_key="...")  # override env var
         for chunk in client.generate_stream("What is RAG?"):
             print(chunk)
     """
 
-    def __init__(self) -> None:
+    def __init__(self, api_key: Optional[str] = None) -> None:
+        self._api_key = api_key
         self._configure_client()
 
     # ── Public API ──────────────────────────────────────────────────────
@@ -84,15 +81,13 @@ class LLMClient:
     # ── Private helpers ─────────────────────────────────────────────────
 
     def _configure_client(self) -> None:
-        """Configure the underlying Gemini client.
-
-        Validates that an API key is present.
-        """
-        api_key = settings.GEMINI_API_KEY
+        """Configure the underlying Gemini client."""
+        api_key = self._api_key or settings.GEMINI_API_KEY
         if not api_key:
             raise LLMError(
                 "GEMINI_API_KEY is not set. "
-                "Create a .env file from .env.example and add your key."
+                "Create a .env file from .env.example and add your key, "
+                "or enter it in the app sidebar."
             )
 
         self._client = genai.Client(api_key=api_key)
