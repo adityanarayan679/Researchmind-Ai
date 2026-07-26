@@ -109,6 +109,35 @@ if "uploaded_docs" not in st.session_state:
 init_status.update(label="Ready", state="complete")
 init_status.empty()
 
+
+# ── Shared helpers ──────────────────────────────────────────────────────────
+
+def _process_uploads(uploaded_files) -> None:
+    """Process a batch of uploaded PDFs: extract, chunk, embed, index."""
+    loader = PDFLoader()
+    chunker = TextChunker()
+    for f in uploaded_files:
+        if f.name in st.session_state.uploaded_docs:
+            continue
+        try:
+            safe_name = f.name.replace(" ", "_")
+            fpath = str(DATA_DIR / safe_name)
+            with open(fpath, "wb") as fh:
+                fh.write(f.getbuffer())
+            pages = loader.load(fpath)
+            chunks = chunker.chunk_pages(pages)
+            vectors = st.session_state.embedder.encode_batch([c.text for c in chunks])
+            st.session_state.vector_store.add(chunks, vectors)
+            st.session_state.uploaded_docs[f.name] = {
+                "path": fpath,
+                "pages": pages[-1].total_pages if pages else 0,
+                "chunks": len(chunks),
+                "chars": sum(len(p.text) for p in pages),
+            }
+        except (PDFLoadError, FileNotFoundError, EmbeddingError) as e:
+            st.error(f"**{f.name}** — {e}")
+
+
 # ── Sidebar ─────────────────────────────────────────────────────────────────
 
 with st.sidebar:
@@ -141,51 +170,8 @@ with st.sidebar:
     )
 
     if uploaded_files:
-        loader = PDFLoader()
-        chunker = TextChunker()
-        progress_bar = st.progress(0, text="Preparing...")
-
-        for i, uploaded_file in enumerate(uploaded_files):
-            if uploaded_file.name in st.session_state.uploaded_docs:
-                continue
-
-            progress_bar.progress(
-                (i + 0.5) / len(uploaded_files),
-                text=f"Processing {uploaded_file.name}...",
-            )
-
-            try:
-                safe_name = uploaded_file.name.replace(" ", "_")
-                file_path = str(DATA_DIR / safe_name)
-                with open(file_path, "wb") as f:
-                    f.write(uploaded_file.getbuffer())
-
-                pages = loader.load(file_path)
-                chunks = chunker.chunk_pages(pages)
-                vectors = st.session_state.embedder.encode_batch(
-                    [c.text for c in chunks]
-                )
-                st.session_state.vector_store.add(chunks, vectors)
-
-                total_pages = pages[-1].total_pages if pages else 0
-                total_chars = sum(len(p.text) for p in pages)
-
-                st.session_state.uploaded_docs[uploaded_file.name] = {
-                    "path": file_path,
-                    "pages": total_pages,
-                    "chunks": len(chunks),
-                    "chars": total_chars,
-                }
-
-            except (PDFLoadError, FileNotFoundError, EmbeddingError) as e:
-                st.error(f"**{uploaded_file.name}** — {e}")
-
-            progress_bar.progress(
-                (i + 1) / len(uploaded_files),
-                text=f"Ready: {uploaded_file.name}",
-            )
-
-        progress_bar.empty()
+        _process_uploads(uploaded_files)
+        st.rerun()
 
     if st.session_state.uploaded_docs:
         st.divider()
@@ -228,21 +214,30 @@ st.markdown(
 )
 
 with st.expander("⚙️ Settings", expanded=False):
-    current_key = st.session_state.get("api_key", "")
-    api_key = st.text_input(
+    main_key = st.text_input(
         "Gemini API Key",
         type="password",
-        value=current_key,
+        value=st.session_state.get("api_key", ""),
         placeholder="Paste your key here...",
         help="Get a free key at https://aistudio.google.com/app/apikey",
     )
-    if api_key and api_key != current_key:
-        st.session_state.api_key = api_key
+    if main_key and main_key != st.session_state.get("api_key", ""):
+        st.session_state.api_key = main_key
         try:
-            st.session_state.llm_client = LLMClient(api_key=api_key)
+            st.session_state.llm_client = LLMClient(api_key=main_key)
             st.success("API key updated")
         except LLMError as e:
             st.error(str(e))
+
+    main_files = st.file_uploader(
+        "Upload PDFs",
+        type=["pdf"],
+        accept_multiple_files=True,
+        key="main_uploader",
+    )
+    if main_files:
+        _process_uploads(main_files)
+        st.rerun()
 
 doc_count = len(st.session_state.uploaded_docs)
 if doc_count > 0:
