@@ -227,6 +227,23 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+with st.expander("⚙️ Settings", expanded=False):
+    current_key = st.session_state.get("api_key", "")
+    api_key = st.text_input(
+        "Gemini API Key",
+        type="password",
+        value=current_key,
+        placeholder="Paste your key here...",
+        help="Get a free key at https://aistudio.google.com/app/apikey",
+    )
+    if api_key and api_key != current_key:
+        st.session_state.api_key = api_key
+        try:
+            st.session_state.llm_client = LLMClient(api_key=api_key)
+            st.success("API key updated")
+        except LLMError as e:
+            st.error(str(e))
+
 doc_count = len(st.session_state.uploaded_docs)
 if doc_count > 0:
     st.markdown(
@@ -235,7 +252,7 @@ if doc_count > 0:
         unsafe_allow_html=True,
     )
 else:
-    st.info("Upload PDF documents in the sidebar to start asking questions.", icon="📖")
+    st.info("Upload PDF documents above to start asking questions.", icon="📖")
 
 # ── Chat History ────────────────────────────────────────────────────────────
 
