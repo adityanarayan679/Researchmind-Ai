@@ -1,0 +1,18 @@
+# Web Framework
+streamlit>=1.28.0
+
+# LLM Integration
+google-genai>=2.0.0
+
+# PDF Processing (text extraction)
+PyMuPDF>=1.23.0
+
+# Embeddings (local, free, no API key needed)
+sentence-transformers>=2.2.0
+
+# Vector Database (CPU-only, free)
+faiss-cpu>=1.7.0
+
+# Utilities
+python-dotenv>=1.0.0
+numpy>=1.24.0

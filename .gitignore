@@ -1,0 +1,43 @@
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# FAISS index files
+*.faiss
+*.pkl
+
+# Data files
+data/*.pdf
+data/*.txt
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Logs
+*.log
+
+# Test outputs
+.pytest_cache/
+htmlcov/
+.coverage
